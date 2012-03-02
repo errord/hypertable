@@ -2382,6 +2382,18 @@ void RangeServer::update_qualify_and_transform() {
               uint8_t family=*(key.ptr+1+strlen((const char *)key.ptr+1)+1);
               Schema::ColumnFamily *cf = schema->get_column_family(family);
 
+	      // reset auto_revision if it's gotten behind
+	      if (uc->auto_revision < latest_range_revision) {
+		uc->auto_revision = Hypertable::get_ts64();
+		if (uc->auto_revision < latest_range_revision) {
+                  HT_THROWF(Error::RANGESERVER_REVISION_ORDER_ERROR,
+                            "Auto revision (%lld) is less than latest range "
+			    "revision (%lld) for range %s",
+                            (Lld)uc->auto_revision, (Lld)latest_range_revision,
+                            rulist->range->get_name().c_str());
+		}
+	      }
+
               // This will transform keys that need to be assigned a
               // timestamp and/or revision number by re-writing the key
               // with the added timestamp and/or revision tacked on to the end
